@@ -1,6 +1,6 @@
-# PMTProcessor
-## Hi, welcome to PMTProcessor!
-PMTProcessor is a software which provides support for processing and analysing data from SNO+ experiment.
+# PMTprocessor
+## Hi, welcome to PMTprocessor!
+PMTprocessor is a software which provides support for processing and analysing data from SNO+ experiment.
 
 To use this software, simply open your terminal window and run the below command:
 
