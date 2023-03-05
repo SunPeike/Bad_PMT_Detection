@@ -17,3 +17,13 @@ in the command line, then type
 ls
 ```
 then you can have a look of what is included in this folder.
+
+There are several functions which help you to read, clean and visualize the data. According to SNO+ data disclosure regulations, I am not allowed to provide the experimental data, which means you need to use your own data sets. The easiest way of import your data is type the below codes in your terminal:
+```
+jupyter notebook
+```
+then you can click "example.ipynb", where I left you a block to fill in your folder path. My local path of data folder is:
+```
+folderpath = "/Users/peikesun/Documents/Year3/project/inputs"
+```
+you should replace it with your own path
