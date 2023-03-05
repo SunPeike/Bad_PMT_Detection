@@ -50,5 +50,12 @@ def overall_data_clean(foldername):
         df.drop(df[df[i] == 5].index, inplace = True)   #drop 5 for all dim
     return df
 
+def data_completion(foldername):
+    df = overall_data_clean(foldername)
+    first_five_cols = df.iloc[:, :5]
+    sum_cols = first_five_cols.sum(axis=1)
+    first_five_cols['others'] = 1 - sum_cols
+    return first_five_cols
+
 
 
