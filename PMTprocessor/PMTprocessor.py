@@ -15,6 +15,10 @@ from sklearn import metrics
 from sklearn.metrics import roc_curve, roc_auc_score
 import re
 from sklearn.preprocessing import StandardScaler
+import warnings
+warnings.filterwarnings("ignore")
+
+
 
 def read_file(filename):
     with open(filename) as f:
@@ -74,3 +78,78 @@ def pie_all_rows(folderpath):
     ax.set_title('Fractions of different ranges using all data')
     plt.show()
 
+    
+def get_top_rows(df, column):
+    max_val = df[column].max()    
+    # Get all rows with the maximum 
+    max_rows = df[df[column] == max_val]
+    if len(max_rows) > 1:
+        # If there are ties, randomly choose one row
+        max_rows = max_rows.sample(n=1)  
+    return max_rows
+
+def five_extreme(foldername):
+    df = overall_data_clean(foldername)
+    df = df.iloc[:, :5]
+    top_rows = pd.DataFrame()
+    for column in ['qhs_main', 'qhs_neg', 'qhs_railed', 'qhs_second', 'qhs_third']:
+        top_row = get_top_rows(df, column)
+        top_rows = top_rows.append(top_row)   
+    return top_rows
+
+
+def relocate_columns(folderpath):
+    df = five_extreme(folderpath)
+    new_df = pd.DataFrame({
+    "qhs_neg": df.iloc[:, 1],
+    "qhs_main": df.iloc[:, 0],
+    "qhs_second": df.iloc[:, 2],
+    "qhs_third": df.iloc[:, 4],
+    "qhs_railed": df.iloc[:, 3]})
+    
+    return new_df
+
+
+def rename_rows(folderpath):
+    new_df = relocate_columns(folderpath)
+    max_qhs_neg_row = new_df["qhs_neg"].idxmax()
+    new_df = new_df.rename(index={max_qhs_neg_row: "too high pedestal"})
+    max_qhs_main_row = new_df["qhs_main"].idxmax()
+    new_df = new_df.rename(index={max_qhs_main_row: "Expected distribution"})
+    max_qhs_third_row = new_df["qhs_third"].idxmax()
+    new_df = new_df.rename(index={max_qhs_third_row: "double pedestal"})
+    max_qhs_railed_row = new_df["qhs_railed"].idxmax()
+    new_df = new_df.rename(index={max_qhs_railed_row: "Railed Channel"})
+    max_qhs_second_row = new_df["qhs_second"].idxmax()
+    new_df = new_df.drop(max_qhs_second_row)
+    
+    return new_df
+
+def map_column_header(column):
+    if column == 'qhs_neg':
+        return (-1000, -15)
+    elif column == 'qhs_main':
+        return (-15, -500)
+    elif column == 'qhs_second':
+        return (500, 1500)
+    elif column == 'qhs_third':
+        return (1500, 2500)
+    elif column == 'qhs_railed':
+        return (3300, 4000)
+    else:
+        return column
+
+def SNOPreliminary(folderpath):
+    df = rename_rows(folderpath)
+    # Apply the mapping function to the column headers
+    df.columns = df.columns.map(map_column_header)
+
+    # Transpose the dataframe
+    df = df.T
+
+    # Create a line chart
+    df.plot(kind='line', figsize=(10, 6))
+    plt.title('Use available data to reprodue SNO+ preliminary graph')
+    plt.xlabel('Charge')
+    plt.ylabel('Count')
+    plt.show()
