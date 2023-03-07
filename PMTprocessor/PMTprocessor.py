@@ -57,5 +57,20 @@ def data_completion(foldername):
     first_five_cols['others'] = 1 - sum_cols
     return first_five_cols
 
-
+def pie_all_rows(folderpath):
+    data = data_completion(folderpath)
+    averages = data.mean()
+    fig, ax = plt.subplots()
+    wedges, labels, autopct = ax.pie(averages, 
+                                  autopct='%1.1f%%', 
+                                  startangle=90, 
+                                  labeldistance=1.1, 
+                                  pctdistance=7,
+                                  colors=plt.get_cmap('Paired').colors)
+    ax.legend(wedges, averages.index,
+          title="Ranges",
+          loc="center left",
+          bbox_to_anchor=(1, 0, 0.5, 1))
+    ax.set_title('Fractions of different ranges using all data')
+    plt.show()
 
