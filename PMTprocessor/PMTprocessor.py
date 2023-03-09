@@ -17,6 +17,8 @@ import re
 from sklearn.preprocessing import StandardScaler
 import warnings
 warnings.filterwarnings("ignore")
+from sklearn.semi_supervised import LabelPropagation
+
 
 
 
@@ -152,4 +154,141 @@ def SNOPreliminary(folderpath):
     plt.title('Use available data to reprodue SNO+ preliminary graph')
     plt.xlabel('Charge')
     plt.ylabel('Count')
+    plt.show()
+    
+
+    
+def first_five_column(folderpath):
+    df = overall_data_clean(folderpath)
+    first_five_cols = df.iloc[:, :5]
+    return first_five_cols
+
+
+def relocate_5_columns(folderpath):
+    df = first_five_column(folderpath)
+    new_df = pd.DataFrame({
+    "qhs_neg": df.iloc[:, 1],
+    "qhs_main": df.iloc[:, 0],
+    "qhs_second": df.iloc[:, 2],
+    "qhs_third": df.iloc[:, 4],
+    "qhs_railed": df.iloc[:, 3]})
+    return new_df
+
+def scatter_5_columns(folderpath):
+    df = relocate_5_columns(folderpath)
+    columns = df.columns
+    fig, axs = plt.subplots(nrows=len(columns), ncols=len(columns), figsize=(30,30),constrained_layout=True)
+
+    for i in range(len(columns)):
+        for j in range(len(columns)):
+            axs[i,j].scatter(df[columns[i]], df[columns[j]], s=1)
+            axs[i,j].set_xlabel(columns[i])
+            axs[i,j].set_ylabel(columns[j])
+    plt.show()
+
+##################################################################################
+def first_2_column(folderpath):
+    df = relocate_5_columns(folderpath)
+    first_2_cols = df.iloc[:, :2]
+    return first_2_cols
+
+def generateLabelsSmall(folderpath):
+    df = first_2_column(folderpath).iloc[:5000]
+    df_sorted_neg = df.sort_values('qhs_neg', ascending=False)
+    df_sorted_main = df.sort_values('qhs_main', ascending=False)
+    df['Label'] = -1
+    top_100_neg = set(df_sorted_neg.iloc[:100].index)
+    df.loc[top_100_neg, 'Label'] = 1
+    top_100_main = set(df_sorted_main.iloc[:100].index)
+    df.loc[top_100_main, 'Label'] = 0
+    return df
+# generateLabelsSmall("inputs")
+
+def generateLabels(folderpath):
+    df = first_2_column(folderpath)
+    df_sorted_neg = df.sort_values('qhs_neg', ascending=False)
+    df_sorted_main = df.sort_values('qhs_main', ascending=False)
+    df['Label'] = -1
+    top_100_neg = set(df_sorted_neg.iloc[:100].index)
+    df.loc[top_100_neg, 'Label'] = 1
+    top_100_main = set(df_sorted_main.iloc[:100].index)
+    df.loc[top_100_main, 'Label'] = 0
+    return df
+
+def LPA(folderpath):
+    df = generateLabels(folderpath)
+    labeled = df[df['Label'] != -1]
+    unlabeled = df[df['Label'] == -1]
+    lp_model = LabelPropagation(kernel='knn', n_neighbors=2)
+    lp_model.fit(labeled[['qhs_neg', 'qhs_main']], labeled['Label'])
+    unlabeled_labels = lp_model.predict(unlabeled[['qhs_neg', 'qhs_main']])
+    predicted_labels = pd.concat([labeled[['qhs_neg', 'qhs_main', 'Label']], 
+                              unlabeled[['qhs_neg', 'qhs_main']].assign(Label=unlabeled_labels)], 
+                             axis=0)
+    predicted_labels = predicted_labels.rename(columns={predicted_labels.columns[-1]: 'pred_label'})
+    return predicted_labels
+
+def LPAsmall(folderpath):
+    df = generateLabelsSmall(folderpath)
+    labeled = df[df['Label'] != -1]
+    unlabeled = df[df['Label'] == -1]
+    lp_model = LabelPropagation(kernel='knn', n_neighbors=2)
+    lp_model.fit(labeled[['qhs_neg', 'qhs_main']], labeled['Label'])
+    unlabeled_labels = lp_model.predict(unlabeled[['qhs_neg', 'qhs_main']])
+    predicted_labels = pd.concat([labeled[['qhs_neg', 'qhs_main', 'Label']], 
+                              unlabeled[['qhs_neg', 'qhs_main']].assign(Label=unlabeled_labels)], 
+                             axis=0)
+    predicted_labels = predicted_labels.rename(columns={predicted_labels.columns[-1]: 'pred_label'})
+    return predicted_labels
+
+# LPAsmall("inputs")
+
+def map_label_to_new_col(label, pred_label):
+    if label == 0:
+        return 0
+    elif label == 1:
+        return 1
+    elif label == -1:
+        if pred_label == 0:
+            return 3
+        elif pred_label == 1:
+            return 4
+    else:
+        return np.nan
+    
+def create_table_for_drawing_Small(folderpath):
+    beforemodel = generateLabelsSmall(folderpath)
+    initiallabel = beforemodel.iloc[:, -1]
+    predicted_labels = LPAsmall(folderpath)
+    allinone = pd.concat([predicted_labels, initiallabel], axis=1)
+    allinone['new_col'] = allinone.apply(lambda row: map_label_to_new_col(row['Label'], row['pred_label']), axis=1)
+    return allinone
+
+def graphLPASmall(folderpath):
+    allinone = create_table_for_drawing_Small(folderpath)
+    # create a dictionary to map new_col values to colors and shapes
+    color_dict = {0: 'green', 1: 'red', 3: 'green', 4: 'red'}
+    shape_dict = {0: 's', 1: 's', 3: 'o', 4: 'o'}
+
+# create a scatter plot
+    fig, ax = plt.subplots()
+    for i, row in allinone.iterrows():
+        ax.scatter(row['qhs_main'], row['qhs_neg'], c=color_dict[row['new_col']], marker=shape_dict[row['new_col']])
+
+# add legend
+    handles = []
+    labels = []
+    for new_col, color in color_dict.items():
+        shape = shape_dict[new_col]
+        label = f'new_col={new_col}'
+        handles.append(ax.scatter([], [], c=color, marker=shape))
+        labels.append(label)
+    ax.legend(handles, labels, loc='best', title='Legend')
+
+# add labels and title
+    ax.set_xlabel('qhs_main')
+    ax.set_ylabel('qhs_neg')
+    ax.set_title('Scatter Plot of qhs_neg and qhs_main')
+
+# show the plot
     plt.show()
