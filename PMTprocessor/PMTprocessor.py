@@ -83,6 +83,8 @@ def pie_all_rows(folderpath):
     plt.show()
 
     
+################  DRAW FOLDING LINE  ###################
+
 def get_top_rows(df, column):
     max_val = df[column].max()    
     # Get all rows with the maximum 
@@ -142,8 +144,7 @@ def map_column_header(column):
         return (3300, 4000)
     else:
         return column
-    
-################  DRAW FOLDING LINE  ###################
+
 
 def SNOPreliminary(folderpath):
     df = rename_rows(folderpath)
@@ -161,6 +162,7 @@ def SNOPreliminary(folderpath):
     plt.show()
     
 
+################  DRAW SCATTER  ###################
     
 def first_five_column(folderpath):
     df = overall_data_clean(folderpath)
@@ -178,7 +180,6 @@ def relocate_5_columns(folderpath):
     "qhs_railed": df.iloc[:, 3]})
     return new_df
 
-################  DRAW SCATTER  ###################
 
 def scatter_5_columns(folderpath):
     df = relocate_5_columns(folderpath)
@@ -193,29 +194,14 @@ def scatter_5_columns(folderpath):
     plt.show()
 
 ######################### 2 COLUMN LPA  ######################################
+
 def first_2_column(folderpath):
     df = relocate_5_columns(folderpath)
     first_2_cols = df.iloc[:, :2]
     return first_2_cols
 
-def generateLabelsSmall(folderpath):
-    df = first_2_column(folderpath).iloc[:2000]
-    df_sorted_neg = df.sort_values('qhs_neg', ascending=False)
-    df_sorted_main = df.sort_values('qhs_main', ascending=False)
-    df['Label'] = -1
-    num_rows = df.shape[0]
-    i = num_rows/10
-    ri = int(round(i))
-    j = num_rows/1000
-    rj = int(round(j))
-    top_100_neg = set(df_sorted_neg.iloc[:rj].index)
-    df.loc[top_100_neg, 'Label'] = 1
-    top_100_main = set(df_sorted_main.iloc[:ri].index)
-    df.loc[top_100_main, 'Label'] = 0
-    return df
-# generateLabelsSmall("inputs")
 
-def generateLabels(folderpath):
+def generateLabels_neg_main(folderpath):
     df = first_2_column(folderpath)
     df_sorted_neg = df.sort_values('qhs_neg', ascending=False)
     df_sorted_main = df.sort_values('qhs_main', ascending=False)
@@ -231,11 +217,11 @@ def generateLabels(folderpath):
     df.loc[top_100_main, 'Label'] = 0
     return df
 
-def LPA(folderpath):
-    df = generateLabels(folderpath)
+def LPA_neg_main(folderpath):
+    df = generateLabels_neg_main(folderpath)
     labeled = df[df['Label'] != -1]
     unlabeled = df[df['Label'] == -1]
-    lp_model = LabelPropagation(kernel='knn', n_neighbors=2)
+    lp_model = LabelPropagation(kernel='knn', n_neighbors=10, gamma=0.5, max_iter=500)
     lp_model.fit(labeled[['qhs_neg', 'qhs_main']], labeled['Label'])
     unlabeled_labels = lp_model.predict(unlabeled[['qhs_neg', 'qhs_main']])
     predicted_labels = pd.concat([labeled[['qhs_neg', 'qhs_main', 'Label']], 
@@ -244,22 +230,8 @@ def LPA(folderpath):
     predicted_labels = predicted_labels.rename(columns={predicted_labels.columns[-1]: 'pred_label'})
     return predicted_labels
 
-def LPAsmall(folderpath):
-    df = generateLabelsSmall(folderpath)
-    labeled = df[df['Label'] != -1]
-    unlabeled = df[df['Label'] == -1]
-    lp_model = LabelPropagation(kernel='knn', n_neighbors=2)
-    lp_model.fit(labeled[['qhs_neg', 'qhs_main']], labeled['Label'])
-    unlabeled_labels = lp_model.predict(unlabeled[['qhs_neg', 'qhs_main']])
-    predicted_labels = pd.concat([labeled[['qhs_neg', 'qhs_main', 'Label']], 
-                              unlabeled[['qhs_neg', 'qhs_main']].assign(Label=unlabeled_labels)], 
-                             axis=0)
-    predicted_labels = predicted_labels.rename(columns={predicted_labels.columns[-1]: 'pred_label'})
-    return predicted_labels
 
-# LPAsmall("inputs")
-
-def map_label_to_new_col(label, pred_label):
+def map_label_to_new_col_neg_main(label, pred_label):
     if label == 0:
         return "set_good"
     elif label == 1:
@@ -271,29 +243,21 @@ def map_label_to_new_col(label, pred_label):
             return "pred_railed"
     else:
         return np.nan
-    
-    
-def create_table_for_drawing_Small(folderpath):
-    beforemodel = generateLabelsSmall(folderpath)
+
+def create_table_for_drawing_neg_main(folderpath):
+    beforemodel = generateLabels_neg_main(folderpath)
     initiallabel = beforemodel.iloc[:, -1]
-    predicted_labels = LPAsmall(folderpath)
+    predicted_labels = LPA_neg_main(folderpath)
     allinone = pd.concat([predicted_labels, initiallabel], axis=1)
-    allinone['new_col'] = allinone.apply(lambda row: map_label_to_new_col(row['Label'], row['pred_label']), axis=1)
+    allinone['new_col'] = allinone.apply(lambda row: map_label_to_new_col_neg_main(row['Label'], row['pred_label']), axis=1)
     return allinone
 
-def create_table_for_drawing(folderpath):
-    beforemodel = generateLabels(folderpath)
-    initiallabel = beforemodel.iloc[:, -1]
-    predicted_labels = LPA(folderpath)
-    allinone = pd.concat([predicted_labels, initiallabel], axis=1)
-    allinone['new_col'] = allinone.apply(lambda row: map_label_to_new_col(row['Label'], row['pred_label']), axis=1)
-    return allinone
 
-def graphLPASmall(folderpath):
-    allinone = create_table_for_drawing_Small(folderpath)
+def graphLPA_neg_main(folderpath):
+    allinone = create_table_for_drawing_neg_main(folderpath)
     # create a dictionary to map new_col values to colors and shapes
     color_dict = {"set_good": 'royalblue', "set_railed": 'darkorange', "pred_good": 'royalblue', "pred_railed": 'darkorange'}
-    shape_dict = {"set_good": 's', "set_railed": 's', "pred_good": 'o', "pred_railed": 'o'}
+    shape_dict = {"set_good": 'o', "set_railed": 'o', "pred_good": 'x', "pred_railed": 'x'}
 
 
 # create a scatter plot
@@ -318,33 +282,129 @@ def graphLPASmall(folderpath):
 
 # show the plot
     plt.show()
+    
+ ############################ LPA for all columns#################
 
-def graphLPA(folderpath):
-    allinone = create_table_for_drawing(folderpath)
-    # create a dictionary to map new_col values to colors and shapes
-    color_dict = {"set_good": 'royalblue', "set_railed": 'darkorange', "pred_good": 'royalblue', "pred_railed": 'darkorange'}
-    shape_dict = {"set_good": 's', "set_railed": 's', "pred_good": 'o', "pred_railed": 'o'}
+def generateLabelsall_v2(folderpath):
+    df = relocate_5_columns(folderpath)
+    df_sorted_neg = df.sort_values('qhs_neg', ascending=False)
+    df_sorted_main = df.sort_values('qhs_main', ascending=False)
+    df_sorted_second = df.sort_values('qhs_second', ascending=False)
+    df_sorted_third = df.sort_values('qhs_third', ascending=False)
+    df_sorted_railed = df.sort_values('qhs_railed', ascending=False)
+    df['Label'] = -1
+    
+    num_rows = df.shape[0]
+    
+    
+    i_neg = num_rows/150
+    ri_neg = int(round(i_neg))
+    
+    i_main = num_rows/30
+    ri_main = int(round(i_main))
+    
+    i_second = num_rows/200
+    ri_second = int(round(i_second))
+    
+    i_third = num_rows/1200
+    ri_third = int(round(i_third))
+    
+    i_railed = num_rows/500
+    ri_railed = int(round(i_railed))
+
+    
+    top_main = set(df_sorted_main.iloc[:ri_main].index)
+    df.loc[top_main, 'Label'] = 0
+
+    
+    top_neg = set(df_sorted_main.iloc[:ri_neg].index)
+    df.loc[top_neg, 'Label'] = 1
+    
+    top_second = set(df_sorted_main.iloc[:ri_second].index)
+    df.loc[top_second, 'Label'] = 1
+    
+    top_railed= set(df_sorted_main.iloc[:ri_railed].index)
+    df.loc[top_railed, 'Label'] = 1
+    
+    top_third = set(df_sorted_main.iloc[:ri_third].index)
+    df.loc[top_third, 'Label'] = 1
+    
+    return df
 
 
-# create a scatter plot
-    fig, ax = plt.subplots()
-    for i, row in allinone.iterrows():
-        ax.scatter(row['qhs_main'], row['qhs_neg'], c=color_dict[row['new_col']], marker=shape_dict[row['new_col']])
+def LPAall_v2(folderpath):
+    df = generateLabelsall_v2(folderpath)
+    labeled = df[df['Label'] != -1]
+    unlabeled = df[df['Label'] == -1]
+    lp_model = LabelPropagation(kernel='knn', n_neighbors=1, max_iter = 100)
+    lp_model.fit(labeled[['qhs_neg', 'qhs_main', 'qhs_second','qhs_third', 'qhs_railed']], labeled['Label'])
+    unlabeled_labels = lp_model.predict(unlabeled[['qhs_neg', 'qhs_main','qhs_second','qhs_third', 'qhs_railed']])
+    predicted_labels = pd.concat([labeled[['qhs_neg', 'qhs_main','qhs_second','qhs_third', 'qhs_railed', 'Label']], 
+                              unlabeled[['qhs_neg', 'qhs_main','qhs_second','qhs_third', 'qhs_railed']].assign(Label=unlabeled_labels)], 
+                             axis=0)
+    predicted_labels = predicted_labels.rename(columns={predicted_labels.columns[-1]: 'pred_label'})
+    return predicted_labels
 
-# add legend
-    handles = []
-    labels = []
-    for new_col, color in color_dict.items():
-        shape = shape_dict[new_col]
-        label = f'{new_col}'
-        handles.append(ax.scatter([], [], c=color, marker=shape))
-        labels.append(label)
-    ax.legend(handles, labels, loc='best', title='Legend')
 
-# add labels and title
-    ax.set_xlabel('qhs_main')
-    ax.set_ylabel('qhs_neg')
-    ax.set_title('Scatter Plot of qhs_neg and qhs_main')
+def set_new_col_v2(row):
+    if row['Label'] == 0:
+        return "set_good"
+    elif row['Label'] == 1:
+        return "set_bad"
+    elif row['Label'] == -1:
+        if row['pred_label'] == 0:
+            return "pred_good"
+        elif row['pred_label'] == 1:
+            return "pred_bad"
+    else:
+        return np.nan
+    
+    
+def create_table_for_drawing_all_v2(folderpath):
+    beforemodel = generateLabelsall_v2(folderpath)
+    initiallabel = beforemodel.iloc[:, -1]
+    predicted_labels = LPAall_v2(folderpath)
+    allinone = pd.concat([predicted_labels, initiallabel], axis=1)
+    allinone['new_col'] = allinone.apply(set_new_col_v2, axis=1)
+    return allinone
 
-# show the plot
+
+
+def graphLPA_v2(folderpath):
+    allinone = create_table_for_drawing_all_v2(folderpath)
+    color_dict = {"set_good": 'royalblue', "set_bad": 'darkorange',
+              "pred_good": 'royalblue', "pred_bad": 'darkorange'}
+
+    shape_dict = {"set_good": 'o', "set_bad": 'o',
+              "pred_good": 'x', "pred_bad": 'x'}
+    allinone5 = allinone.iloc[:, :5]
+
+# get the column names
+    columns = allinone5.columns
+
+# create the scatter plot matrix
+    fig, axs = plt.subplots(nrows=len(columns), ncols=len(columns), figsize=(30,30), constrained_layout=True)
+
+    for i in range(len(columns)):
+        for j in range(i+1):
+        # create a dictionary mapping (x,y) coordinates to colors and shapes
+            xy_to_color_shape = {}
+            for index, row in allinone.iterrows():
+                xy = (row[columns[i]], row[columns[j]])
+                if xy not in xy_to_color_shape:
+                    xy_to_color_shape[xy] = {'color': color_dict.get(row['new_col']), 'shape': shape_dict.get(row['new_col'])}
+                axs[i,j].scatter(row[columns[i]], row[columns[j]], s=10, c=xy_to_color_shape[xy]['color'], marker=xy_to_color_shape[xy]['shape'])
+
+            axs[i,j].set_xlabel(columns[i])
+            axs[i,j].set_ylabel(columns[j])
+
+    handles = [plt.Line2D([],[], marker=shape_dict[k], color=color_dict[k], linestyle='None', label=k) for k in shape_dict.keys()]
+    plt.legend(handles=handles)
+
     plt.show()
+
+
+
+
+
+
