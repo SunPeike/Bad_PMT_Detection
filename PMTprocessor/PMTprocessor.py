@@ -537,6 +537,23 @@ def railed_graphLPA(folderpath):
     
     
 ############# output bad channels and count #############
+def bad_channels_output(filepath):
+    df1 = create_table_for_drawing(filepath)
+    df2 = second_create_table_for_drawing(filepath)
+    df3 = third_create_table_for_drawing(filepath)
+    df4 = railed_create_table_for_drawing(filepath)
+    
+    df1_sorted = df1.sort_index()["pred_label"]
+    df2_sorted = df2.sort_index()["pred_label"]
+    df3_sorted = df3.sort_index()["pred_label"]
+    df4_sorted = df4.sort_index()["pred_label"]
+    addup = df2_sorted.add(df1_sorted).add(df3_sorted).add(df4_sorted)
+    df = pd.DataFrame(addup)
+    df['type'] = df['pred_label'].apply(lambda x: 'good' if x == 0 else 'bad')
+    df = df.drop(df.columns[0], axis=1)
+    return(df)
+
+
 def bad_channels(filepath):
     df1 = create_table_for_drawing(filepath)
     df2 = second_create_table_for_drawing(filepath)
