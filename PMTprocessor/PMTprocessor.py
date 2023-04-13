@@ -569,6 +569,41 @@ def bad_channels_count(filepath):
     num_good = df_concat['type'].value_counts()['bad']
     return(num_good)
 
+######### plot #############
+
+def plot_LPA_all(filepath):
+    df1 = create_table_for_drawing(filepath)
+    df2 = second_create_table_for_drawing(filepath)
+    df3 = third_create_table_for_drawing(filepath)
+    df4 = railed_create_table_for_drawing(filepath)
+    
+    df1_sorted = df1.sort_index()["pred_label"]
+    df2_sorted = df2.sort_index()["pred_label"]
+    df3_sorted = df3.sort_index()["pred_label"]
+    df4_sorted = df4.sort_index()["pred_label"]
+    addup = df2_sorted.add(df1_sorted).add(df3_sorted).add(df4_sorted)
+    df = pd.DataFrame(addup)
+    df['type'] = df['pred_label'].apply(lambda x: 'good' if x == 0 else 'bad')
+    df = df.drop(df.columns[0], axis=1)
+    DF = first_five_column("input")
+    df_concat = pd.concat([DF, df], axis=1)
+    
+    df = df_concat
+
+    colors = {'good': 'royalblue', 'bad': 'darkorange'}
+
+# loop over pairs of columns and create scatter plots
+    fig, axs = plt.subplots(5, 5, figsize=(10,12),constrained_layout=True)
+
+    for i, col1 in enumerate(df.columns[:-1]):
+        for j, col2 in enumerate(df.columns[:-1]):
+            axs[i, j].scatter(df[col1], df[col2], s = 1, color=df['type'].map(colors))
+            axs[i, j].set_xlabel(col1)
+            axs[i, j].set_ylabel(col2)
+
+    plt.tight_layout()
+# adjust spacing between subplots
+    plt.show()
 ############################ LPA for all columns#################
 
 def generateLabelsall_v2(folderpath):
