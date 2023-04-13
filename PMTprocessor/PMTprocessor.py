@@ -549,25 +549,17 @@ def bad_channels(filepath):
     df4_sorted = df4.sort_index()["pred_label"]
     addup = df2_sorted.add(df1_sorted).add(df3_sorted).add(df4_sorted)
     df = pd.DataFrame(addup)
-    ones_df = df[df['pred_label'] == 1]
+    df['type'] = df['pred_label'].apply(lambda x: 'good' if x == 0 else 'bad')
+    df = df.drop(df.columns[0], axis=1)
+    ones_df = df[df['type'] == "bad"]
     ones_index = ones_df.index.tolist()
-    num_good = df_concat['type'].value_counts()['good']
     return(ones_index)
 
 def bad_channels_count(filepath):
-    df1 = create_table_for_drawing(filepath)
-    df2 = second_create_table_for_drawing(filepath)
-    df3 = third_create_table_for_drawing(filepath)
-    df4 = railed_create_table_for_drawing(filepath)
-    
-    df1_sorted = df1.sort_index()["pred_label"]
-    df2_sorted = df2.sort_index()["pred_label"]
-    df3_sorted = df3.sort_index()["pred_label"]
-    df4_sorted = df4.sort_index()["pred_label"]
-    addup = df2_sorted.add(df1_sorted).add(df3_sorted).add(df4_sorted)
-    df = pd.DataFrame(addup)
-    num_good = df_concat['type'].value_counts()['bad']
-    return(num_good)
+    bad = bad_channels(filepath)
+    countbad = len(bad)
+
+    return(countbad)
 
 ######### plot #############
 
